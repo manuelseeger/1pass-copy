@@ -1,0 +1,1 @@
+- Use Powershell syntax with ";", not "&&"

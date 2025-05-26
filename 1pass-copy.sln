@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipboardTo1Pass", "ClipboardTo1Pass\ClipboardTo1Pass.csproj", "{FDE72D97-B312-8BD2-0C37-66F7EFF9B00F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FDE72D97-B312-8BD2-0C37-66F7EFF9B00F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDE72D97-B312-8BD2-0C37-66F7EFF9B00F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDE72D97-B312-8BD2-0C37-66F7EFF9B00F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDE72D97-B312-8BD2-0C37-66F7EFF9B00F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A9487380-F9B6-46C6-A704-D52115EE6676}
+	EndGlobalSection
+EndGlobal
