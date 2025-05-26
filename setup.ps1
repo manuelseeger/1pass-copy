@@ -22,7 +22,7 @@ function Test-CommandExists {
 }
 
 # Check if .NET 9 is installed
-Write-Host "[1/4] Checking .NET 9 installation..." -ForegroundColor White
+Write-Host "[1/2] Checking .NET 9 installation..." -ForegroundColor White
 if (Test-CommandExists "dotnet") {
     try {
         $dotnetVersion = dotnet --version 2>$null
@@ -43,7 +43,7 @@ else {
 }
 
 # Check if 1Password CLI is installed
-Write-Host "[2/4] Checking 1Password CLI installation..." -ForegroundColor White
+Write-Host "[2/2] Checking 1Password CLI installation..." -ForegroundColor White
 if (Test-CommandExists "op") {
     try {
         $opVersion = op --version 2>$null
@@ -63,80 +63,76 @@ else {
     exit 1
 }
 
-# Check if signed in to 1Password CLI
-Write-Host "[3/4] Checking 1Password CLI authentication..." -ForegroundColor White
-try {
-    $whoami = op whoami 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ 1Password CLI is authenticated (signed in as: $whoami)" -ForegroundColor Green
-    }
-    else {
-        Write-Host "❌ Not signed in to 1Password CLI" -ForegroundColor Red
-        Write-Host "    Please run: op signin" -ForegroundColor Red
-        Read-Host "Press Enter to continue..."
-        exit 1
-    }
-}
-catch {
-    Write-Host "❌ 1Password CLI authentication check failed" -ForegroundColor Red
-    Write-Host "    Please run: op signin" -ForegroundColor Red
-    Read-Host "Press Enter to continue..."
-    exit 1
-}
-
-# Check if secure note exists
-Write-Host "[4/4] Checking for secure note '_CP'..." -ForegroundColor White
-try {
-    $item = op item get "_CP" --format=json 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Secure note '_CP' found" -ForegroundColor Green
-    }
-    else {
-        Write-Host "❌ Secure note '_CP' not found" -ForegroundColor Red
-        Write-Host ""
-        $create = Read-Host "Would you like to create it now? (Y/N)"
-        if ($create -eq "Y" -or $create -eq "y") {
-            Write-Host "Creating secure note '_CP'..." -ForegroundColor Yellow
-            try {
-                op item create --category="Secure Note" --title="_CP" notesPlain="Clipboard content will be saved here automatically." 2>$null
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "✅ Secure note '_CP' created successfully" -ForegroundColor Green
-                }
-                else {
-                    Write-Host "❌ Failed to create secure note" -ForegroundColor Red
-                    Read-Host "Press Enter to continue..."
-                    exit 1
-                }
-            }
-            catch {
-                Write-Host "❌ Exception creating secure note" -ForegroundColor Red
-                Read-Host "Press Enter to continue..."
-                exit 1
-            }
-        }
-        else {
-            Write-Host "Please create a secure note named '_CP' manually in 1Password" -ForegroundColor Red
-            Read-Host "Press Enter to continue..."
-            exit 1
-        }
-    }
-}
-catch {
-    Write-Host "❌ Error checking for secure note" -ForegroundColor Red
-    Read-Host "Press Enter to continue..."
-    exit 1
-}
-
 Write-Host ""
 Write-Host "====================================" -ForegroundColor Green
 Write-Host "✅ All prerequisites are satisfied!" -ForegroundColor Green
 Write-Host "====================================" -ForegroundColor Green
 Write-Host ""
+Write-Host "Before using the application, please ensure:" -ForegroundColor Yellow
+Write-Host "1. You are signed in to 1Password CLI: op signin" -ForegroundColor White
+Write-Host "2. You have a secure note named '_CP' in 1Password" -ForegroundColor White
+Write-Host "   (The app will create this automatically on first use if it doesn't exist)" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Building release version..." -ForegroundColor Yellow
+try {
+    Set-Location ".\ClipboardTo1Pass"
+    dotnet build -c Release --verbosity quiet
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✅ Release build successful" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Release build failed" -ForegroundColor Red
+        Set-Location ".."
+        Read-Host "Press Enter to continue..."
+        exit 1
+    }
+    Set-Location ".."
+} catch {
+    Write-Host "❌ Build error: $_" -ForegroundColor Red
+    Set-Location ".."
+    Read-Host "Press Enter to continue..."
+    exit 1
+}
+
+Write-Host ""
 Write-Host "The Clipboard to 1Password tool is ready to use." -ForegroundColor White
 Write-Host ""
+Write-Host "Setup Windows Startup (Optional):" -ForegroundColor Yellow
+$startup = Read-Host "Would you like to set up automatic startup on Windows login? (Y/N)"
+if ($startup -eq "Y" -or $startup -eq "y") {
+    Write-Host ""
+    Write-Host "Setting up Windows startup..." -ForegroundColor Yellow
+    try {
+        $StartupFolder = [Environment]::GetFolderPath("Startup")
+        $ExePath = Join-Path $PSScriptRoot "ClipboardTo1Pass\bin\Release\net9.0-windows\ClipboardTo1Pass.exe"
+        $ShortcutPath = Join-Path $StartupFolder "ClipboardTo1Pass.lnk"
+        
+        $WShell = New-Object -ComObject WScript.Shell
+        $Shortcut = $WShell.CreateShortcut($ShortcutPath)
+        $Shortcut.TargetPath = $ExePath
+        $Shortcut.WorkingDirectory = Split-Path $ExePath -Parent
+        $Shortcut.Description = "ClipboardTo1Pass - Global hotkey for clipboard to 1Password"
+        $Shortcut.Save()
+        
+        Write-Host "✅ Startup shortcut created successfully" -ForegroundColor Green
+        Write-Host "   Location: $ShortcutPath" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "The application will now start automatically when you log in." -ForegroundColor Green
+        Write-Host "You can disable this in Windows Settings > Apps > Startup" -ForegroundColor Gray
+    } catch {
+        Write-Host "❌ Failed to create startup shortcut: $_" -ForegroundColor Red
+        Write-Host "You can set this up manually later if needed." -ForegroundColor Gray
+    }
+} else {
+    Write-Host ""
+    Write-Host "Skipping startup setup. You can run the application manually when needed." -ForegroundColor Gray
+}
+
+Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "1. Run the application: .\ClipboardTo1Pass\bin\Release\net9.0-windows\ClipboardTo1Pass.exe" -ForegroundColor White
+Write-Host "1. The application is ready to use: .\ClipboardTo1Pass\bin\Release\net9.0-windows\ClipboardTo1Pass.exe" -ForegroundColor White
 Write-Host "2. Copy any text to clipboard" -ForegroundColor White
-Write-Host "3. Press Ctrl+Shift+V to save to 1Password" -ForegroundColor White
+Write-Host "3. Press Ctrl+Alt+F12 to save to 1Password" -ForegroundColor White
+Write-Host ""
+Write-Host "To remove startup later, delete: $([Environment]::GetFolderPath('Startup'))\ClipboardTo1Pass.lnk" -ForegroundColor Gray
 Write-Host ""
 Read-Host "Press Enter to continue..."
