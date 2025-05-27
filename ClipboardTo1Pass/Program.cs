@@ -19,8 +19,10 @@ public class Program
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     [DllImport("kernel32.dll")]
-    private static extern uint GetLastError();    private static NotifyIcon? trayIcon;
-    private static readonly string OnePasswordItemName = "_CP";    private static ProcessStartInfo CreateOnePasswordProcessStartInfo(string arguments, bool useShellExecute = false)
+    private static extern uint GetLastError();
+    private static NotifyIcon? trayIcon;
+    private static readonly string OnePasswordItemName = "_CP";
+    private static ProcessStartInfo CreateOnePasswordProcessStartInfo(string arguments, bool useShellExecute = false)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -103,7 +105,9 @@ public class Program
         contextMenu.Items.Add("Exit", null, (s, e) => Application.Exit());
         trayIcon.ContextMenuStrip = contextMenu;
         trayIcon.DoubleClick += (s, e) => SaveClipboardTo1Password();
-    }    public static void SaveClipboardTo1Password()
+    }
+
+    public static void SaveClipboardTo1Password()
     {
         Console.WriteLine("=== SaveClipboardTo1Password called ===");
         try
@@ -114,7 +118,7 @@ public class Program
                 ShowNotification("No text found in clipboard", ToolTipIcon.Warning);
                 return;
             }
-            
+
             string? clipboardText = Clipboard.GetText();
             Console.WriteLine($"Clipboard text length: {clipboardText?.Length ?? 0}");
 
@@ -145,7 +149,8 @@ public class Program
             ShowNotification($"Error: {ex.Message}", ToolTipIcon.Error);
         }
         Console.WriteLine("=== SaveClipboardTo1Password completed ===");
-    }private static string GetCurrentSecureNote()
+    }
+    private static string GetCurrentSecureNote()
     {
         try
         {
@@ -189,7 +194,21 @@ public class Program
             Console.WriteLine($"Exception in GetCurrentSecureNote: {ex.Message}");
             return "";
         }
-    }    private static (bool Success, string Error) UpdateSecureNote(string content)
+    }
+
+    private static string EscapeForPowerShellCommandLine(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return "";
+
+        // Double quotes need to be escaped as ""
+        var escaped = input
+            .Replace("\"", "\"\"");  // Escape double quotes
+
+        return escaped;
+    }
+
+    private static (bool Success, string Error) UpdateSecureNote(string content)
     {
         try
         {
@@ -212,23 +231,25 @@ public class Program
             {
                 Console.WriteLine("Item doesn't exist, creating new one...");
                 return CreateSecureNote(content);
-            }
+            }            Console.WriteLine("Item exists, updating...");
+            // Use assignment statement format with proper PowerShell escaping
+            var escapedContent = EscapeForPowerShellCommandLine(content);
+            var updateCommand = $"item edit \"{OnePasswordItemName}\" \"notesPlain={escapedContent}\"";
+            Console.WriteLine($"Update command: {updateCommand}");
+            var editStartInfo = CreateOnePasswordProcessStartInfo(updateCommand, useShellExecute: false);
 
-            Console.WriteLine("Item exists, updating...");
-            var editStartInfo = CreateOnePasswordProcessStartInfo($"item edit \"{OnePasswordItemName}\" \"notesPlain={content}\"", useShellExecute: true);
-
-            using var process = Process.Start(editStartInfo);
-            if (process == null)
+            using var editProcess = Process.Start(editStartInfo);
+            if (editProcess == null)
                 return (false, "Failed to start 1Password CLI process");
 
-            if (!process.WaitForExit(30000))
+            if (!editProcess.WaitForExit(30000))
             {
-                process.Kill();
+                editProcess.Kill();
                 return (false, "1Password CLI timed out during update");
             }
 
-            if (process.ExitCode != 0)
-                return (false, $"CLI exit code {process.ExitCode}");
+            if (editProcess.ExitCode != 0)
+                return (false, $"CLI exit code {editProcess.ExitCode}");
 
             Console.WriteLine("Update completed successfully");
             return (true, "");
@@ -238,25 +259,32 @@ public class Program
             Console.WriteLine($"Error updating secure note: {ex.Message}");
             return (false, ex.Message);
         }
-    }    private static (bool Success, string Error) CreateSecureNote(string content)
+    }
+
+    private static (bool Success, string Error) CreateSecureNote(string content)
     {
         try
         {
             Console.WriteLine("Creating new secure note...");
-            var createStartInfo = CreateOnePasswordProcessStartInfo($"item create --category=\"Secure Note\" --title=\"{OnePasswordItemName}\" \"notesPlain={content}\"", useShellExecute: true);
+            var createStartInfo = CreateOnePasswordProcessStartInfo($"item create --category=\"Secure Note\" --title=\"{OnePasswordItemName}\" notesPlain=-", useShellExecute: false);
+            createStartInfo.RedirectStandardInput = true;
 
-            using var process = Process.Start(createStartInfo);
-            if (process == null)
+            using var createProcess = Process.Start(createStartInfo);
+            if (createProcess == null)
                 return (false, "Failed to start 1Password CLI process");
 
-            if (!process.WaitForExit(30000))
+            // Write content to stdin
+            createProcess.StandardInput.Write(content);
+            createProcess.StandardInput.Close();
+
+            if (!createProcess.WaitForExit(30000))
             {
-                process.Kill();
+                createProcess.Kill();
                 return (false, "1Password CLI timed out during create");
             }
 
-            if (process.ExitCode != 0)
-                return (false, $"Create CLI exit code {process.ExitCode}");
+            if (createProcess.ExitCode != 0)
+                return (false, $"Create CLI exit code {createProcess.ExitCode}");
 
             Console.WriteLine("Create completed successfully");
             return (true, "");
