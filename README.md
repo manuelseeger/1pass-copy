@@ -71,11 +71,6 @@ private const int VK_F12 = 0x7B;         // F12 key
 private static readonly string OnePasswordItemName = "_CP";
 ```
 
-### Change Timestamp Format
-```csharp
-var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-```
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
